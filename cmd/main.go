@@ -1,13 +1,12 @@
 package main
 
 import (
-	"log"
-
 	"ladle-color-picker/internal/ui"
+	"log"
 )
 
 func main() {
-	app := ui.NewColorPickerApp()
+	app := ui.NewColorPicker()
 	if err := app.Run(); err != nil {
 		log.Fatal("Failed to start app:", err)
 	}

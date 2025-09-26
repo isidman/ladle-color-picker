@@ -87,3 +87,17 @@ func (c *Color) rgbToHsl() (float64, float64, float64) {
 
 	return h * 360, s, l
 }
+
+// The GetPresetColors returns common preset colors
+func GetPresetColors() []*Color {
+	return []*Color{
+		NewColor(255, 0, 0),     //Red
+		NewColor(0, 255, 0),     //Green
+		NewColor(0, 0, 255),     //Blue
+		NewColor(255, 255, 0),   //Yellow
+		NewColor(255, 0, 255),   //Magenta
+		NewColor(0, 255, 255),   //Cyan
+		NewColor(255, 255, 255), //White
+		NewColor(0, 0, 0),       //Black
+	}
+}
