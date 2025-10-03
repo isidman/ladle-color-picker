@@ -3,14 +3,15 @@ package ui
 import (
 	"fmt"
 
+	"ladle-color-picker/internal/color"
+	ladleTheme "ladle-color-picker/internal/theme"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	fyneTheme "fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-
-	"ladle-color-picker/internal/color"
-	"ladle-color-picker/internal/theme"
 )
 
 // ColorPicker represents the main application
@@ -20,9 +21,9 @@ type ColorPicker struct {
 	currentColor *color.Color
 	palette      *color.Palette
 	components   *Components
-	currentTheme *theme.LadleTheme
-	themeMode    theme.ThemeMode
-	animatedBg   *theme.AnimatedBG
+	currentTheme *ladleTheme.LadleTheme
+	themeMode    ladleTheme.ThemeMode
+	animatedBg   *ladleTheme.AnimatedBG
 
 	//UI Parts
 	colorDisplay   *canvas.Rectangle
@@ -40,7 +41,7 @@ func NewColorPicker() *ColorPicker {
 	myApp := app.New()
 
 	//Light mode
-	ladleTheme := theme.NewTheme(theme.Light)
+	ladleTheme := ladleTheme.NewTheme(ladleTheme.Light)
 	myApp.Settings().SetTheme(ladleTheme)
 
 	myWindow := myApp.NewWindow("🥣 Ladle: A color picker")
@@ -51,7 +52,7 @@ func NewColorPicker() *ColorPicker {
 		app:          myApp,
 		window:       myWindow,
 		currentTheme: ladleTheme,
-		themeMode:    theme.Light,
+		themeMode:    0,
 		currentColor: color.NewColor(255, 0, 0),
 		palette:      color.NewPalette(),
 		components:   NewComponents(),
@@ -66,10 +67,16 @@ func (app *ColorPicker) Run() error {
 	//Setup UI
 	app.setupUI()
 
+	app.setupThemeEvents()
+
+	app.setupExtendedEvents()
+
 	//Setup event handlers
 	app.setupAllEvents()
 
-	//Show and run
+	//Called to refresh the UI initially
+	app.updateUI()
+
 	app.window.ShowAndRun()
 
 	//Cleanup
@@ -90,10 +97,12 @@ func (app *ColorPicker) setupUI() {
 	content := app.createMainLayout()
 
 	//Creating animated BG with content
-	app.animatedBg = theme.NewAnimatedBG(content)
+	app.animatedBg = ladleTheme.NewAnimatedBG(content)
 
-	//Setting the animated bg as window content
-	app.window.SetContent(app.animatedBg.GetContainer())
+	variant := fyneTheme.VariantLight
+	card := ladleTheme.RoundedCard(app.animatedBg.GetContainer(), app.currentTheme, variant)
+	//Explicit passing of current theme and variant
+	app.window.SetContent(card)
 	app.updateColorDisplay()
 }
 
@@ -119,7 +128,7 @@ func (app *ColorPicker) createComponents() {
 
 func (app *ColorPicker) createMainLayout() fyne.CanvasObject {
 	// Create rounded card for the main interface
-	mainContent := container.NewVBox(
+	return container.NewVBox(
 		//Header with theme toggle
 		container.NewBorder(nil, nil, widget.NewLabel("Ladle: A color picker"), app.themeToggleBtn),
 		widget.NewSeparator(),
@@ -131,7 +140,6 @@ func (app *ColorPicker) createMainLayout() fyne.CanvasObject {
 		app.hexLabel,
 		app.rgbLabel,
 		app.hslLabel,
-
 		widget.NewSeparator(),
 
 		//RGB sliders
@@ -141,45 +149,18 @@ func (app *ColorPicker) createMainLayout() fyne.CanvasObject {
 		app.greenSlider,
 		widget.NewLabel(" Blue"),
 		app.blueSlider,
-
 		widget.NewSeparator(),
 
 		//Action Buttons
 		container.NewHBox(
-			widget.NewButton(" Copy HEX", func() {
+			widget.NewButton("Copy HEX", func() {
 				app.copyToClipboard(app.currentColor.ToHex())
 			}),
-			widget.NewButton(" Copy RGB", func() {
+			widget.NewButton("Copy RGB", func() {
 				app.copyToClipboard(app.currentColor.ToRGB())
 			}),
 		),
 	)
-
-	// Return the content in a rounded card
-	return theme.RoundedCard(mainContent, app.currentTheme)
-}
-
-func (app *ColorPicker) setupEvents() {
-	//Slider events
-	app.redSlider.OnChanged = func(value float64) {
-		app.currentColor.R = uint8(value)
-		app.updateColorDisplay()
-	}
-
-	app.greenSlider.OnChanged = func(value float64) {
-		app.currentColor.G = uint8(value)
-		app.updateColorDisplay()
-	}
-
-	app.blueSlider.OnChanged = func(value float64) {
-		app.currentColor.B = uint8(value)
-		app.updateColorDisplay()
-	}
-
-	//Theme toggle event
-	app.themeToggleBtn.OnTapped = func() {
-		app.toggleTheme()
-	}
 }
 
 func (app *ColorPicker) updateColorDisplay() {
@@ -194,16 +175,16 @@ func (app *ColorPicker) updateColorDisplay() {
 
 func (app *ColorPicker) toggleTheme() {
 	//Switch theme mode
-	if app.themeMode == theme.Light {
-		app.themeMode == theme.Dark
+	if app.themeMode == 0 {
+		app.themeMode = 1
 		app.themeToggleBtn.SetText("☀️ Light Mode")
 	} else {
-		app.themeMode = theme.Light
+		app.themeMode = 0
 		app.themeToggleBtn.SetText("🌙 Dark Mode")
 	}
 
 	//Create new theme and apply it
-	app.currentTheme = theme.NewTheme(app.themeMode)
+	app.currentTheme = ladleTheme.NewTheme(app.themeMode)
 	app.app.Settings().SetTheme(app.currentTheme)
 
 	//Refresh the UI

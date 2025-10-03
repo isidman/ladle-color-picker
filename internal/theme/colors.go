@@ -7,8 +7,15 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-//Theme colors
+// Light/Dark mode
+type ThemeMode int
 
+const (
+	Light ThemeMode = iota //0
+	Dark                   //1
+)
+
+// Theme colors
 var (
 	//Light mode
 	LightBGR = color.RGBA{245, 224, 172, 255} // #F5E0AC
@@ -34,7 +41,7 @@ func NewTheme(mode ThemeMode) *LadleTheme {
 }
 
 // Returning theme colors
-func (t *LadleTheme) Color(name theme.ColorName, variant theme.Variant) color.Color {
+func (t *LadleTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	switch t.mode {
 	case Light:
 		return t.lightColor(name, variant)
@@ -45,11 +52,11 @@ func (t *LadleTheme) Color(name theme.ColorName, variant theme.Variant) color.Co
 	}
 }
 
-func (t *LadleTheme) lightColor(name theme.ColorName, variant theme.Variant) color.Color {
+func (t *LadleTheme) lightColor(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	switch name {
-	case theme.ColorNameBG:
+	case theme.ColorNameBackground:
 		return LightBGR
-	case theme.ColorNameForeground, theme.ColorNameOnPrimary:
+	case theme.ColorNameForeground:
 		return LightPR
 	case theme.ColorNamePrimary:
 		return LightPR
@@ -62,18 +69,18 @@ func (t *LadleTheme) lightColor(name theme.ColorName, variant theme.Variant) col
 	}
 }
 
-func (t *LadleTheme) darkColor(name theme.ColorName, variant theme.Variant) color.Color {
+func (t *LadleTheme) darkColor(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	switch name {
 	case theme.ColorNameBackground:
 		return DarkBGR
-	case theme.ColorNameForeground, theme.ColorNameOnPrimary:
+	case theme.ColorNameForeground:
 		return DarkPR
 	case theme.ColorNamePrimary:
 		return DarkPR
 	case theme.ColorNameButton, theme.ColorNameInputBackground:
 		return color.RGBA{0, 0, 0, 100} //Semi-transparent black
 	case theme.ColorNameSeparator:
-		return DarkPrimary
+		return DarkPR
 	default:
 		//Invert the default colors for dark theme
 		defaultColor := theme.DefaultTheme().Color(name, variant)
@@ -82,12 +89,12 @@ func (t *LadleTheme) darkColor(name theme.ColorName, variant theme.Variant) colo
 }
 
 // Theme fonts return
-func (t *LadleTheme) Font(style theme.TextStyle) fyne.Resource {
-	return theme.DefaultTheme().Icon(name)
+func (t *LadleTheme) Font(style fyne.TextStyle) fyne.Resource {
+	return theme.DefaultTheme().Font(style)
 }
 
 // Theme sizes return
-func (t *LadleTheme) Size(name theme.SizeName) float32 {
+func (t *LadleTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case theme.SizeNamePadding:
 		return 8
@@ -98,6 +105,11 @@ func (t *LadleTheme) Size(name theme.SizeName) float32 {
 	default:
 		return theme.DefaultTheme().Size(name)
 	}
+}
+
+// Icon returns theme icons (Added missing method)
+func (t *LadleTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
+	return theme.DefaultTheme().Icon(name)
 }
 
 // Helper for color invertion

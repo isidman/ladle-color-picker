@@ -10,7 +10,7 @@ func (app *ColorPicker) setupAllEvents() {
 	}
 
 	app.components.GreenSlider.OnChanged = func(value float64) {
-		app.currentColor.R = uint8(value)
+		app.currentColor.G = uint8(value)
 		app.updateColorDisplay()
 		app.palette.AddRecent(app.currentColor.ToHex())
 	}
@@ -32,7 +32,7 @@ func (app *ColorPicker) setupExtendedEvents() {
 	//Save button event
 	app.components.SaveBtn.OnTapped = func() {
 		if app.palette.AddSaved(app.currentColor.ToHex()) {
-			app.updateSavedColor()
+			app.updateSavedColors()
 			app.showNotification("Color saved to palette!")
 		} else {
 			app.showNotification("Color already saved!")
@@ -55,7 +55,7 @@ func (app *ColorPicker) updateUI() {
 	app.updateSliders()
 }
 
-// updatSliders updates slider position without triggering events
+// updateSliders updates slider position without triggering events
 func (app *ColorPicker) updateSliders() {
 	app.components.RedSlider.SetValue(float64(app.currentColor.R))
 	app.components.GreenSlider.SetValue(float64(app.currentColor.G))
@@ -69,6 +69,6 @@ func (app *ColorPicker) showNotification(message string) {
 }
 
 // updateSavedColors refreshes the saved colors UI
-func (app *ColorPicker) updateSavedColor() {
+func (app *ColorPicker) updateSavedColors() {
 	//Rebuild saved colors container
 }
