@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
@@ -10,24 +11,30 @@ import (
 
 // The Components struct holds all the ui components
 type Components struct {
-	ColorDisplay *widget.Card
-	HexLabel     *widget.Label
-	RGBLabel     *widget.Label
-	HSLLabel     *widget.Label
-	RedSlider    *widget.Slider
-	GreenSlider  *widget.Slider
-	BlueSlider   *widget.Slider
-	CopyHexBtn   *widget.Button
-	CopyRGBBtn   *widget.Button
-	SaveBtn      *widget.Button
-	RecentBox    *fyne.Container
-	SavedBox     *fyne.Container
+	ColorDisplay  *widget.Card
+	ColorSwatch   *canvas.Rectangle
+	HexLabel      *widget.Label
+	RGBLabel      *widget.Label
+	HSLLabel      *widget.Label
+	RedSlider     *widget.Slider
+	GreenSlider   *widget.Slider
+	BlueSlider    *widget.Slider
+	CopyHexBtn    *widget.Button
+	CopyRGBBtn    *widget.Button
+	SaveBtn       *widget.Button
+	PresetButtons []*widget.Button
+	RecentBox     *fyne.Container
+	SavedBox      *fyne.Container
 }
 
 // New UI Components are created below
 func NewComponents() *Components {
+	swatch := canvas.NewRectangle(color.NewColor(255, 0, 0).ToFyneColor())
+	swatch.SetMinSize(fyne.NewSize(200, 100))
+
 	return &Components{
-		ColorDisplay: widget.NewCard("Current Color", "", widget.NewLabel("	")),
+		ColorDisplay: widget.NewCard("Current Color", "", container.NewCenter(swatch)),
+		ColorSwatch:  swatch,
 		HexLabel:     widget.NewLabel("HEX: #ff0000"),
 		RGBLabel:     widget.NewLabel("RGB: rgb(255, 0, 0)"),
 		HSLLabel:     widget.NewLabel("HSL: hsl(0, 100%, 50%)"),
@@ -48,6 +55,7 @@ func (c *Components) CreateLayout(currentColor *color.Color, palette *color.Pale
 	c.RedSlider.SetValue(float64(currentColor.R))
 	c.GreenSlider.SetValue(float64(currentColor.G))
 	c.BlueSlider.SetValue(float64(currentColor.B))
+	presetButtons := c.createPresetColors()
 
 	return container.NewVBox(
 		c.ColorDisplay,
@@ -66,7 +74,7 @@ func (c *Components) CreateLayout(currentColor *color.Color, palette *color.Pale
 		container.NewHBox(c.CopyHexBtn, c.CopyRGBBtn, c.SaveBtn),
 		widget.NewSeparator(),
 		widget.NewLabel(" Preset Colors:"),
-		c.createPresetColors(),
+		presetButtons,
 		widget.NewSeparator(),
 		widget.NewLabel(" Recent Colors:"),
 		c.RecentBox,
@@ -79,11 +87,14 @@ func (c *Components) CreateLayout(currentColor *color.Color, palette *color.Pale
 // createPresetColors creates preset color buttons
 func (c *Components) createPresetColors() *fyne.Container {
 	presetColors := color.GetPresetColors()
+	c.PresetButtons = make([]*widget.Button, len(presetColors))
+
 	buttons := make([]fyne.CanvasObject, len(presetColors))
 
 	for i, col := range presetColors {
-		//Create button for each preset color
-		buttons[i] = widget.NewButton(col.ToHex(), nil)
+		btn := widget.NewButton(col.ToHex(), nil)
+		c.PresetButtons[i] = btn
+		buttons[i] = btn
 	}
 
 	return container.NewHBox(buttons...)
@@ -95,4 +106,6 @@ func (c *Components) UpdateColorDisplay(col *color.Color) {
 	c.RGBLabel.SetText("RGB: " + col.ToRGB())
 	c.HSLLabel.SetText("HSL: " + col.ToHSL())
 	c.ColorDisplay.SetTitle("Current Color: " + col.ToHex())
+	c.ColorSwatch.FillColor = col.ToFyneColor()
+	c.ColorSwatch.Refresh()
 }
