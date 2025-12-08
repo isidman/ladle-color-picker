@@ -1,14 +1,15 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
+	"os"
 
 	"ladle-color-picker/internal/color"
 	ladleTheme "ladle-color-picker/internal/theme"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	fyneTheme "fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -24,15 +25,8 @@ type ColorPicker struct {
 	currentTheme *ladleTheme.LadleTheme
 	themeMode    ladleTheme.ThemeMode
 	animatedBg   *ladleTheme.AnimatedBG
+	isUpdating   bool
 
-	//UI Parts
-	colorDisplay   *canvas.Rectangle
-	hexLabel       *widget.Label
-	rgbLabel       *widget.Label
-	hslLabel       *widget.Label
-	redSlider      *widget.Slider
-	greenSlider    *widget.Slider
-	blueSlider     *widget.Slider
 	themeToggleBtn *widget.Button
 }
 
@@ -40,7 +34,7 @@ type ColorPicker struct {
 func NewColorPicker() *ColorPicker {
 	myApp := app.New()
 
-	//Light mode
+	// Light mode
 	ladleTheme := ladleTheme.NewTheme(ladleTheme.Light)
 	myApp.Settings().SetTheme(ladleTheme)
 
@@ -61,25 +55,29 @@ func NewColorPicker() *ColorPicker {
 
 // Run starts the application
 func (app *ColorPicker) Run() error {
-	//Load saved palette
-	app.palette.Load()
+	// Load saved palette
+	if err := app.palette.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		fmt.Printf("could not load palette: %v\n", err)
+	}
 
-	//Setup UI
+	// Setup UI
 	app.setupUI()
 
 	app.setupThemeEvents()
 
 	app.setupExtendedEvents()
 
-	//Setup event handlers
+	// Setup event handlers
 	app.setupAllEvents()
+	app.setupPaletteEvents()
 
-	//Called to refresh the UI initially
+	// Called to refresh the UI initially
 	app.updateUI()
+	app.updateSavedColors()
 
 	app.window.ShowAndRun()
 
-	//Cleanup
+	// Cleanup
 	if app.animatedBg != nil {
 		app.animatedBg.Stop()
 	}
@@ -90,91 +88,42 @@ func (app *ColorPicker) Run() error {
 // setupUI creates the user interface
 func (app *ColorPicker) setupUI() {
 
-	//UI Part creation
+	// UI Part creation
 	app.createComponents()
 
-	//Main content layout creation
+	// Main content layout creation
 	content := app.createMainLayout()
 
-	//Creating animated BG with content
+	// Creating animated BG with content
 	app.animatedBg = ladleTheme.NewAnimatedBG(content)
 
 	variant := fyneTheme.VariantLight
 	card := ladleTheme.RoundedCard(app.animatedBg.GetContainer(), app.currentTheme, variant)
-	//Explicit passing of current theme and variant
+	// Explicit passing of current theme and variant
 	app.window.SetContent(card)
 	app.updateColorDisplay()
 }
 
 func (app *ColorPicker) createComponents() {
-	//Color display
-	app.colorDisplay = canvas.NewRectangle(app.currentColor.ToFyneColor())
-	app.colorDisplay.Resize(fyne.NewSize(200, 100))
-
-	//Labels
-	app.hexLabel = widget.NewLabel("HEX: #ff0000")
-	app.rgbLabel = widget.NewLabel("RGB: rgb(255, 0, 0)")
-	app.hslLabel = widget.NewLabel("HSL: hsl(0, 100%, 50%)")
-
-	//Sliders
-	app.redSlider = widget.NewSlider(0, 255)
-	app.redSlider.SetValue(255)
-	app.greenSlider = widget.NewSlider(0, 255)
-	app.blueSlider = widget.NewSlider(0, 255)
-
-	//Theme toggle button
 	app.themeToggleBtn = widget.NewButton("🌙 Dark Mode", nil)
 }
 
 func (app *ColorPicker) createMainLayout() fyne.CanvasObject {
-	// Create rounded card for the main interface
+	header := container.NewBorder(nil, nil, widget.NewLabel("Ladle: A color picker"), app.themeToggleBtn)
+
 	return container.NewVBox(
-		//Header with theme toggle
-		container.NewBorder(nil, nil, widget.NewLabel("Ladle: A color picker"), app.themeToggleBtn),
+		header,
 		widget.NewSeparator(),
-
-		//Color display
-		container.NewCenter(app.colorDisplay),
-
-		//Color information
-		app.hexLabel,
-		app.rgbLabel,
-		app.hslLabel,
-		widget.NewSeparator(),
-
-		//RGB sliders
-		widget.NewLabel(" Red"),
-		app.redSlider,
-		widget.NewLabel(" Green"),
-		app.greenSlider,
-		widget.NewLabel(" Blue"),
-		app.blueSlider,
-		widget.NewSeparator(),
-
-		//Action Buttons
-		container.NewHBox(
-			widget.NewButton("Copy HEX", func() {
-				app.copyToClipboard(app.currentColor.ToHex())
-			}),
-			widget.NewButton("Copy RGB", func() {
-				app.copyToClipboard(app.currentColor.ToRGB())
-			}),
-		),
+		app.components.CreateLayout(app.currentColor, app.palette),
 	)
 }
 
 func (app *ColorPicker) updateColorDisplay() {
-	app.colorDisplay.FillColor = app.currentColor.ToFyneColor()
-	app.colorDisplay.Refresh()
-
-	//Update labels
-	app.hexLabel.SetText("HEX: " + app.currentColor.ToHex())
-	app.rgbLabel.SetText("RGB: " + app.currentColor.ToRGB())
-	app.hslLabel.SetText("HSL: " + app.currentColor.ToHSL())
+	app.components.UpdateColorDisplay(app.currentColor)
 }
 
 func (app *ColorPicker) toggleTheme() {
-	//Switch theme mode
+	// Switch theme mode
 	if app.themeMode == 0 {
 		app.themeMode = 1
 		app.themeToggleBtn.SetText("☀️ Light Mode")
@@ -183,17 +132,41 @@ func (app *ColorPicker) toggleTheme() {
 		app.themeToggleBtn.SetText("🌙 Dark Mode")
 	}
 
-	//Create new theme and apply it
+	// Create new theme and apply it
 	app.currentTheme = ladleTheme.NewTheme(app.themeMode)
 	app.app.Settings().SetTheme(app.currentTheme)
 
-	//Refresh the UI
+	// Refresh the UI
 	app.window.Content().Refresh()
 }
 
 func (app *ColorPicker) copyToClipboard(text string) {
-	if clipboard := app.app.Driver().AllWindows()[0].Clipboard(); clipboard != nil {
+	windows := app.app.Driver().AllWindows()
+	if len(windows) == 0 {
+		return
+	}
+
+	if clipboard := windows[0].Clipboard(); clipboard != nil {
 		clipboard.SetContent(text)
 		fmt.Printf("Copied: %s\n", text)
+	}
+}
+
+func (app *ColorPicker) applyColorHex(hex string) {
+	col, err := color.NewColorHex(hex)
+	if err != nil {
+		return
+	}
+
+	app.currentColor = col
+	app.palette.AddRecent(hex)
+	app.updateUI()
+	app.savePalette()
+	app.updateSavedColors()
+}
+
+func (app *ColorPicker) savePalette() {
+	if err := app.palette.Save(); err != nil {
+		fmt.Printf("could not save palette: %v\n", err)
 	}
 }
